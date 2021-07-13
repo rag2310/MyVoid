@@ -3,6 +3,7 @@ package com.rago.myvoid
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
@@ -14,10 +15,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val workManagerButton = findViewById<Button>(R.id.workManagerBtn)
+        val logTextView = findViewById<TextView>(R.id.logTv)
 
+        val testWorkRequest: WorkRequest = OneTimeWorkRequestBuilder<TestWorker>().build()
         workManagerButton.setOnClickListener {
-            val testWorkRequest: WorkRequest = OneTimeWorkRequestBuilder<TestWorker>().build()
             WorkManager.getInstance(applicationContext).enqueue(testWorkRequest)
         }
+
+        WorkManager.getInstance(applicationContext).getWorkInfoByIdLiveData(testWorkRequest.id).observe(this,{
+            it?.let {
+                logTextView.append("testWorkRequest: ${it.state} \n")
+            }
+        })
+
     }
 }

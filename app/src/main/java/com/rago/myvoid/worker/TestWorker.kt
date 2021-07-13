@@ -3,15 +3,14 @@ package com.rago.myvoid.worker
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.work.*
-import com.rago.myvoid.MainActivity
+import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -20,38 +19,71 @@ import java.util.*
 class TestWorker(appContext: Context, workerParameters: WorkerParameters) :
     CoroutineWorker(appContext, workerParameters) {
 
-
     private lateinit var mNotifyBuilder: NotificationCompat.Builder
 
     override suspend fun doWork(): Result {
+        val id = Calendar.getInstance().time.time.toInt()
         var result = 0
         withContext(Dispatchers.IO) {
             println("--------------------------------------------------------")
             println("|INI TestWorker : Prueba ${Calendar.getInstance().time}|")
             println("--------------------------------------------------------")
-            setForeground(createForegroundInfo())
-            //delay(20000)
+            setForeground(createForegroundInfo(id))
+            delay(2000)
             for (i in 1..101) {
                 delay(200)
                 mNotifyBuilder.setContentText("Actualizacion de $i de 100")
                 mNotifyBuilder.setNumber(i)
-                setForeground(ForegroundInfo(1, mNotifyBuilder.build()))
+                setForeground(ForegroundInfo(id, mNotifyBuilder.build()))
             }
             println("--------------------------------------------------------")
             println("|FIN TestWorker : Prueba ${Calendar.getInstance().time}|")
             println("--------------------------------------------------------")
-            result = 1
+            result = 0
         }
-        println("---------------------")
-        println("|Result.success()   |")
-        println("---------------------")
 
 
+        val notificationManager =
+            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as
+                    NotificationManager
+        val builder = NotificationCompat.Builder(applicationContext, "finishUpload")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setDefaults(Notification.DEFAULT_VIBRATE)
+            val channel = NotificationChannel(
+                "finishUpload",
+                "MyVoidApp",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            channel.description = "WorkManagerApp Notifications"
+            notificationManager.createNotificationChannel(channel)
+        }
         return when (result) {
             0 -> {
+                println("---------------------")
+                println("|Result.failure()   |")
+                println("---------------------")
+                notificationManager.notify(
+                    id + 1,
+                    builder.setContentText("Failure!")
+                        .setAutoCancel(true)
+                        .setSmallIcon(android.R.drawable.stat_sys_warning)
+                        .setOngoing(false)
+                        .build()
+                )
                 Result.failure()
             }
             1 -> {
+                println("---------------------")
+                println("|Result.success()   |")
+                println("---------------------")
+                notificationManager.notify(
+                    id + 1,
+                    builder.setContentText("Done!")
+                        .setAutoCancel(true)
+                        .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+                        .setOngoing(false)
+                        .build()
+                )
                 Result.success()
             }
             else -> {
@@ -60,7 +92,7 @@ class TestWorker(appContext: Context, workerParameters: WorkerParameters) :
         }
     }
 
-    private fun createForegroundInfo(): ForegroundInfo {
+    private fun createForegroundInfo(idChannel: Int): ForegroundInfo {
         val intent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 
@@ -71,7 +103,7 @@ class TestWorker(appContext: Context, workerParameters: WorkerParameters) :
             .setContentTitle("Uploading Supplies")
             .setTicker("Downloading Your Image")
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setOngoing(true)
+            .setOngoing(false)
             .addAction(android.R.drawable.ic_delete, "Cancel Download", intent)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -80,7 +112,7 @@ class TestWorker(appContext: Context, workerParameters: WorkerParameters) :
             println("--------------------------------------------------------")
             createChannel(mNotifyBuilder, "workUpload")
         }
-        return ForegroundInfo(1, mNotifyBuilder.build())
+        return ForegroundInfo(idChannel, mNotifyBuilder.build())
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
