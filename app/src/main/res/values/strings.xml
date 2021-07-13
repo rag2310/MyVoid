@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">My Void</string>
+    <string name="workmanager">WorkManager</string>
 </resources>
